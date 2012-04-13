@@ -596,6 +596,7 @@ Ext.define('Ext.ux.TouchCalendarView', {
 	 * @return {Ext.Element}
 	 */
 	getDateCell: function(date){
+    console.log("getDateCell:   "+date);
 		return this.element.select('td[datetime="' + this.getDateAttribute(date) + '"]').first();
 	},
 	
@@ -607,7 +608,7 @@ Ext.define('Ext.ux.TouchCalendarView', {
 	 * @param {Date} date
 	 * @return {String}
 	 */
-	getDateAttribute: function(date){		
+	getDateAttribute: function(date){
 		return Ext.Date.format(date, this.dateAttributeFormat);
 	},
 
