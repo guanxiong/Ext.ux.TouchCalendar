@@ -21,7 +21,6 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 
     mixins: ['Ext.mixin.Observable'],
     
-    requires: 'Ext.DateExtras',
     /**
      * @cfg {String} startEventField Name of the Model field which contains the Event's Start date
      */
@@ -77,7 +76,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
     /**
      * @cfg {Ext.XTemplate} eventBarTpl Template that will be used to fill the Event Bar
      */
-    eventBarTpl: new Ext.XTemplate('{title}'),
+    eventBarTpl: new Ext.XTemplate('{event}'),
     
     init: function(calendar){
 
@@ -231,7 +230,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 			var eventRecord = this.getEventRecord(draggable.el.getAttribute('eventID'));
 			
 			// reshow all the hidden linked Event Bars
-			this.calendar.getEl().select('div.' + eventRecord.internalId).each(function(eventBar){
+			this.calendar.element.select('div.' + eventRecord.internalId).each(function(eventBar){
 				eventBar.show();
 			}, this);
 		}
@@ -295,7 +294,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 		 * @private
 		 */
         var me = this;
-        this.eventBarStore = new Ext.data.Store({
+        this.eventBarStore = Ext.create('Ext.data.Store', {
             model: 'Ext.ux.CalendarEventBarModel',
             data: []
         });
@@ -309,14 +308,10 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
             var currentDate = dateObj.get('date'),
 				currentDateTime = Ext.Date.clearTime(currentDate,true).getTime(),
 				takenDatePositions = []; // stores 'row positions' that are taken on current date
-                console.log(currentDate);
-                console.log(currentDateTime);
             // Filter the Events Store for events that are happening on the currentDate
             store.filterBy(function(record){
                 var startDate = Ext.Date.clearTime(record.get(this.startEventField),true).getTime(),
                     endDate = Ext.Date.clearTime(record.get(this.endEventField),true).getTime();
-                console.log("startDate: "+startDate);
-                console.log("endDate: "+endDate);
                 
                 return (startDate <= currentDateTime) && (endDate >= currentDateTime);
             }, this);
@@ -388,10 +383,11 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
                     
                     // add EventBar record to main store
                     this.eventBarStore.add(eventBarRecord);
+                    console.log('eventBarRecord');
+                    console.log(eventBarRecord);
                 }
                 
             }, this);
-            console.log(this.eventBarStore.getCount());
             // remove the filter
             store.clearFilter();
         }, this);
@@ -407,8 +403,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
     	var me = this;
 		
         store.each(function(record){
-        console.log(record);
-        console.log(record.get('EventID'));
+
             var eventRecord = this.getEventRecord(record.get('EventID')),
 				dayEl = this.calendar.getDateCell(record.get('Date')),
 				doesWrap = this.eventBarDoesWrap(record),
@@ -447,7 +442,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 						draggable.el.setLeft(e.startX - (draggable.el.getWidth() / 2));
 						
 						// hide all linked Event Bars
-						me.calendar.getEl().select('div.' + eventRecord.internalId).each(function(eventBar){
+						me.calendar.element.select('div.' + eventRecord.internalId).each(function(eventBar){
 							if (eventBar.dom !== draggable.el.dom) {
 								eventBar.hide();
 							}
@@ -463,17 +458,20 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 			}
             
             var barPosition = record.get('BarPosition'),
-				barLength = record.get('BarLength'),
-				dayCellX = dayEl.getX(),
-				dayCellY = dayEl.getY(),
-				dayCellHeight = dayEl.getHeight(),
-				dayCellWidth = dayEl.getWidth(),
-            	eventBarHeight = eventBar.getHeight(),            
-            	spacing = this.eventBarSpacing;
+                barLength = record.get('BarLength'),
+                dayCellX = dayEl.getX(),
+                dayCellY = dayEl.getY(),
+                dayCellHeight = dayEl.getHeight(),
+                dayCellWidth = dayEl.getWidth(),
+                eventBarHeight = eventBar.getHeight()+1,            
+                spacing = this.eventBarSpacing;
 
             // set sizes and positions
             eventBar.setLeft(dayCellX + (hasWrapped ? 0 : spacing));
-            eventBar.setTop((((dayCellY - this.calendar.getEl().getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
+            // eventBar.setTop((((dayCellY - this.calendar.element.getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
+            eventBar.setTop((((dayCellY - this.calendar.element.getY())) + eventBarHeight) + ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
+            console.log('(((dayCellY - this.calendar.element.getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing))');
+            console.log('((('+dayCellY+' - '+this.calendar.element.getY()+') + '+dayCellHeight+') - '+eventBarHeight+') - (('+barPosition+' * '+eventBarHeight+' + ('+barPosition+' * '+spacing+') + '+spacing+'))');
             eventBar.setWidth((dayCellWidth * barLength) - (spacing * (doesWrap ? (doesWrap && hasWrapped ? 0 : 1) : 2)));
             
             if (record.linked().getCount() > 0) {
@@ -503,7 +501,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 		draggable.updateBoundary(true);
 
 		// hide all linked Event Bars
-        this.calendar.getEl().select('div.' + eventRecord.internalId).each(function(eventBar){
+        this.calendar.element.select('div.' + eventRecord.internalId).each(function(eventBar){
             if (eventBar.dom !== draggable.el.dom) {
                 eventBar.hide();
             }
@@ -521,8 +519,8 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      * @param {Ext.ux.CalendarEventBarModel} r The EventBar model instance to figure out if it wraps to the next row of dates
      */
     eventBarDoesWrap: function(r){
-        var barEndDate = r.get('Date').add(Date.DAY, (r.get('BarLength') - 1));
-        return barEndDate.clearTime(true).getTime() !== r.get('Record').get(this.endEventField).clearTime(true).getTime();
+        var barEndDate = Ext.Date.add(r.get('Date'), Ext.Date.DAY, (r.get('BarLength') - 1));
+        return Ext.Date.clearTime(barEndDate,true).getTime() !== Ext.Date.clearTime(r.get('Record').get(this.endEventField), true).getTime();
     },
     /**
      * Returns true if the specified EventBar record has been wrapped from the row before.
@@ -531,7 +529,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      * @param {Ext.ux.CalendarEventBarModel} r The EventBar model instance to figure out if it has wrapped from the previous row of dates
      */
     eventBarHasWrapped: function(r){
-        return r.get('Date').clearTime(true).getTime() !== r.get('Record').get(this.startEventField).clearTime(true).getTime();
+        return Ext.Date.clearTime(r.get('Date'), true).getTime() !== Ext.Date.clearTime(r.get('Record').get(this.startEventField), true).getTime();
     },
     
     /**
@@ -627,7 +625,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      * @return {void}
      */
     deselectEvents: function(){
-        this.calendar.getEl().select('.' + this.eventBarSelectedCls).removeCls(this.eventBarSelectedCls);
+        this.calendar.element.select('.' + this.eventBarSelectedCls).removeCls(this.eventBarSelectedCls);
     },
     
     /**
@@ -638,8 +636,8 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      * @param {Date} date2
      */
     getDaysDifference: function(date1, date2){
-        date1 = date1.clearTime(true).getTime();
-        date2 = date2.clearTime(true).getTime();
+        date1 = Ext.Date.clearTime(date1,true).getTime();
+        date2 = Ext.Date.clearTime(date2, true).getTime();
         
         return (date2 - date1) / 1000 / 60 / 60 / 24;
     },
@@ -679,27 +677,29 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
  */
 Ext.define('Ext.ux.CalendarEventBarModel', {
     extend: "Ext.data.Model",
-    fields: [{
-        name: 'EventID',
-        type: 'string'
-    }, {
-        name: 'Date',
-        type: 'date'
-    }, {
-        name: 'BarLength',
-        type: 'int'
-    }, {
-        name: 'BarPosition',
-        type: 'int'
-    }, {
-		name: 'Colour',
-		type: 'string'
-	}, 'Record'],
+    config:{
+        fields: [{
+            name: 'EventID',
+            type: 'string'
+        }, {
+            name: 'Date',
+            type: 'date'
+        }, {
+            name: 'BarLength',
+            type: 'int'
+        }, {
+            name: 'BarPosition',
+            type: 'int'
+        }, {
+            name: 'Colour',
+            type: 'string'
+        }, 'Record'],
     
-    hasMany: [{
-        model: 'Ext.ux.CalendarEventBarModel',
-        name: 'linked'
-    }]
+        hasMany: [{
+            model: 'Ext.ux.CalendarEventBarModel',
+            name: 'linked'
+        }]
+    }
 });
 
 /**
