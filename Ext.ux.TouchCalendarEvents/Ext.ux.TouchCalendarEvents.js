@@ -20,6 +20,7 @@
 Ext.define('Ext.ux.TouchCalendarEvents', {
 
     mixins: ['Ext.mixin.Observable'],
+
     
     /**
      * @cfg {String} startEventField Name of the Model field which contains the Event's Start date
@@ -158,6 +159,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 		if (this.allowEventDragAndDrop) {
 			this.createDroppableRegion();
 		}
+
     },
 	
 	/**
@@ -383,8 +385,6 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
                     
                     // add EventBar record to main store
                     this.eventBarStore.add(eventBarRecord);
-                    console.log('eventBarRecord');
-                    console.log(eventBarRecord);
                 }
                 
             }, this);
@@ -401,83 +401,176 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      */
     renderEventBars: function(store){
     	var me = this;
-		
-        store.each(function(record){
+		if (this.calendar.getViewMode().toUpperCase() !== 'DAY') {
+        
+            store.each(function(record){
 
-            var eventRecord = this.getEventRecord(record.get('EventID')),
-				dayEl = this.calendar.getDateCell(record.get('Date')),
-				doesWrap = this.eventBarDoesWrap(record),
-				hasWrapped = this.eventBarHasWrapped(record);
-            
-            // create the event bar
-            var eventBar = Ext.DomHelper.append(this.eventWrapperEl, {
-                tag: 'div',
-				style: {
-					'background-color': eventRecord.get(this.colourField)
-				},
-                html: this.eventBarTpl.apply(eventRecord.data),
-                eventID: record.get('EventID'),
-                cls: this.eventBarCls + ' ' + record.get('EventID') + (doesWrap ? ' wrap-end' : '') + (hasWrapped ? ' wrap-start' : '')
-            }, true);
-			
-			if (this.allowEventDragAndDrop) {
-			
-				new Ext.util.Draggable(eventBar, {
-					revert: true,
-					
-					/**
-					 * Override for Ext.util.Draggable's onStart method to process the Event Bar's element before dragging
-					 * and raise the 'eventdragstart' event
-					 * @method
-					 * @private
-					 * @param {Event} e
-					 */
-					onStart: function(e){
-					
-						var draggable = this, eventID = draggable.el.getAttribute('eventID'), eventRecord = me.getEventRecord(eventID), eventBarRecord = me.getEventBarRecord(eventID);
-						
-						// Resize dragged Event Bar so it is 1 cell wide
-						draggable.el.setWidth(draggable.el.getWidth() / eventBarRecord.get('BarLength'));
-						// Reposition dragged Event Bar so it is in the middle of the User's finger.
-						draggable.el.setLeft(e.startX - (draggable.el.getWidth() / 2));
-						
-						// hide all linked Event Bars
-						me.calendar.element.select('div.' + eventRecord.internalId).each(function(eventBar){
-							if (eventBar.dom !== draggable.el.dom) {
-								eventBar.hide();
-							}
-						}, this);
-						
-						Ext.util.Draggable.prototype.onStart.apply(this, arguments);
-						
-						me.calendar.fireEvent('eventdragstart', draggable, eventRecord, e);
-						
-						return true;
-					}
-				});
-			}
-            
-            var barPosition = record.get('BarPosition'),
-                barLength = record.get('BarLength'),
-                dayCellX = dayEl.getX(),
-                dayCellY = dayEl.getY(),
-                dayCellHeight = dayEl.getHeight(),
-                dayCellWidth = dayEl.getWidth(),
-                eventBarHeight = eventBar.getHeight()+1,            
-                spacing = this.eventBarSpacing;
+                var eventRecord = this.getEventRecord(record.get('EventID')),
+                    dayEl = this.calendar.getDateCell(record.get('Date')),
+                    doesWrap = this.eventBarDoesWrap(record),
+                    hasWrapped = this.eventBarHasWrapped(record);
+                
+                // create the event bar
+                var eventBar = Ext.DomHelper.append(this.eventWrapperEl, {
+                    tag: 'div',
+                    style: {
+                        'background-color': eventRecord.get(this.colourField)
+                    },
+                    html: this.eventBarTpl.apply(eventRecord.data),
+                    eventID: record.get('EventID'),
+                    cls: this.eventBarCls + ' ' + record.get('EventID') + (doesWrap ? ' wrap-end' : '') + (hasWrapped ? ' wrap-start' : '')
+                }, true);
+                
+                if (this.allowEventDragAndDrop) {
+                
+                    new Ext.util.Draggable(eventBar, {
+                        revert: true,
+                        
+                        /**
+                         * Override for Ext.util.Draggable's onStart method to process the Event Bar's element before dragging
+                         * and raise the 'eventdragstart' event
+                         * @method
+                         * @private
+                         * @param {Event} e
+                         */
+                        onStart: function(e){
+                        
+                            var draggable = this, eventID = draggable.el.getAttribute('eventID'), eventRecord = me.getEventRecord(eventID), eventBarRecord = me.getEventBarRecord(eventID);
+                            
+                            // Resize dragged Event Bar so it is 1 cell wide
+                            draggable.el.setWidth(draggable.el.getWidth() / eventBarRecord.get('BarLength'));
+                            // Reposition dragged Event Bar so it is in the middle of the User's finger.
+                            draggable.el.setLeft(e.startX - (draggable.el.getWidth() / 2));
+                            
+                            // hide all linked Event Bars
+                            me.calendar.element.select('div.' + eventRecord.internalId).each(function(eventBar){
+                                if (eventBar.dom !== draggable.el.dom) {
+                                    eventBar.hide();
+                                }
+                            }, this);
+                            
+                            Ext.util.Draggable.prototype.onStart.apply(this, arguments);
+                            
+                            me.calendar.fireEvent('eventdragstart', draggable, eventRecord, e);
+                            
+                            return true;
+                        }
+                    });
+                }
+                
+                var barPosition = record.get('BarPosition'),
+                    barLength = record.get('BarLength'),
+                    dayCellX = dayEl.getX(),
+                    dayCellY = dayEl.getY(),
+                    dayCellHeight = dayEl.getHeight(),
+                    dayCellWidth = dayEl.getWidth(),
+                    eventBarHeight = eventBar.getHeight(),            
+                    spacing = this.eventBarSpacing,
+                    table = this.calendar.element.select('table').first();
+                // set sizes and positions
+                eventBar.setLeft(dayCellX + (hasWrapped ? 0 : spacing));
+                // eventBar.setTop((((dayCellY - this.calendar.element.getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
+                var bar_top=(((dayCellY - this.calendar.element.getY())) + eventBarHeight) + ((barPosition * eventBarHeight + (barPosition * spacing) + spacing));
+                if((bar_top + eventBarHeight) <= (dayCellY - this.calendar.element.getY() + dayCellHeight)){
+                    eventBar.setTop(bar_top);
+                }else{
+                    dayEl.setHeight(dayCellHeight+eventBarHeight+spacing);
+                    eventBar.setTop(bar_top);
+                    table.setHeight(table.getHeight()+eventBarHeight+spacing);
+                }
+                
+                eventBar.setWidth((dayCellWidth * barLength) - (spacing * (doesWrap ? (doesWrap && hasWrapped ? 0 : 1) : 2)));
+                
+                if (record.linked().getCount() > 0) {
+                    this.renderEventBars(record.linked());
+                }
+            }, this);
+        }else{
+            store.each(function(record){
 
-            // set sizes and positions
-            eventBar.setLeft(dayCellX + (hasWrapped ? 0 : spacing));
-            // eventBar.setTop((((dayCellY - this.calendar.element.getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
-            eventBar.setTop((((dayCellY - this.calendar.element.getY())) + eventBarHeight) + ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
-            console.log('(((dayCellY - this.calendar.element.getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing))');
-            console.log('((('+dayCellY+' - '+this.calendar.element.getY()+') + '+dayCellHeight+') - '+eventBarHeight+') - (('+barPosition+' * '+eventBarHeight+' + ('+barPosition+' * '+spacing+') + '+spacing+'))');
-            eventBar.setWidth((dayCellWidth * barLength) - (spacing * (doesWrap ? (doesWrap && hasWrapped ? 0 : 1) : 2)));
-            
-            if (record.linked().getCount() > 0) {
-                this.renderEventBars(record.linked());
-            }
-        }, this);
+                var eventRecord = this.getEventRecord(record.get('EventID')),
+                    dayEl = this.calendar.getDateCell(record.get('Date')),
+                    doesWrap = this.eventBarDoesWrap(record),
+                    hasWrapped = this.eventBarHasWrapped(record);
+                
+                // create the event bar
+                var eventBar = Ext.DomHelper.append(this.eventWrapperEl, {
+                    tag: 'div',
+                    style: {
+                        'background-color': eventRecord.get(this.colourField)
+                    },
+                    html: this.eventBarTpl.apply(eventRecord.data),
+                    eventID: record.get('EventID'),
+                    cls: this.eventBarCls + ' ' + record.get('EventID') + (doesWrap ? ' wrap-end' : '') + (hasWrapped ? ' wrap-start' : '')
+                }, true);
+                
+                if (this.allowEventDragAndDrop) {
+                
+                    new Ext.util.Draggable(eventBar, {
+                        revert: true,
+                        
+                        /**
+                         * Override for Ext.util.Draggable's onStart method to process the Event Bar's element before dragging
+                         * and raise the 'eventdragstart' event
+                         * @method
+                         * @private
+                         * @param {Event} e
+                         */
+                        onStart: function(e){
+                        
+                            var draggable = this, eventID = draggable.el.getAttribute('eventID'), eventRecord = me.getEventRecord(eventID), eventBarRecord = me.getEventBarRecord(eventID);
+                            
+                            // Resize dragged Event Bar so it is 1 cell wide
+                            draggable.el.setWidth(draggable.el.getWidth() / eventBarRecord.get('BarLength'));
+                            // Reposition dragged Event Bar so it is in the middle of the User's finger.
+                            draggable.el.setLeft(e.startX - (draggable.el.getWidth() / 2));
+                            
+                            // hide all linked Event Bars
+                            me.calendar.element.select('div.' + eventRecord.internalId).each(function(eventBar){
+                                if (eventBar.dom !== draggable.el.dom) {
+                                    eventBar.hide();
+                                }
+                            }, this);
+                            
+                            Ext.util.Draggable.prototype.onStart.apply(this, arguments);
+                            
+                            me.calendar.fireEvent('eventdragstart', draggable, eventRecord, e);
+                            
+                            return true;
+                        }
+                    });
+                }
+                
+                var barPosition = record.get('BarPosition'),
+                    barLength = record.get('BarLength'),
+                    dayX = 50,
+                    dayCellX = dayEl.getX(),
+                    dayCellY = dayEl.getY(),
+                    dayCellHeight = dayEl.getHeight(),
+                    dayCellWidth = dayEl.getWidth(),
+                    eventBarHeight = eventBar.getHeight(),            
+                    spacing = this.eventBarSpacing,
+                    table = this.calendar.element.select('table').first();
+                // set sizes and positions
+                eventBar.setLeft(dayX + (hasWrapped ? 0 : spacing));
+                // eventBar.setTop((((dayCellY - this.calendar.element.getY()) + dayCellHeight) - eventBarHeight) - ((barPosition * eventBarHeight + (barPosition * spacing) + spacing)));
+                var bar_top=(((dayCellY - this.calendar.element.getY())) + eventBarHeight) + ((barPosition * eventBarHeight + (barPosition * spacing) + spacing));
+                if((bar_top + eventBarHeight) <= (dayCellY - this.calendar.element.getY() + dayCellHeight)){
+                    eventBar.setTop(bar_top);
+                }else{
+                    dayEl.setHeight(dayCellHeight+eventBarHeight+spacing);
+                    eventBar.setTop(bar_top);
+                    table.setHeight(table.getHeight()+eventBarHeight+spacing);
+                }
+                
+                eventBar.setWidth((dayCellWidth * barLength) - (spacing * (doesWrap ? (doesWrap && hasWrapped ? 0 : 1) : 2)));
+                
+                if (record.linked().getCount() > 0) {
+                    this.renderEventBars(record.linked());
+                }
+            }, this);
+
+        }
     },
 	
 	/**
@@ -667,6 +760,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
 	getRandomColour: function(){
 		return '#'+(Math.random()*0xFFFFFF<<0).toString(16);
 	}
+    
 });
 
 
