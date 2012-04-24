@@ -6,7 +6,7 @@ Ext.define('Ext.ux.TouchCalendarView', {
         /**
          * @cfg {String} mode The mode the Calendar will be displayed in. Possible values 'month', 'week' or 'day'.
          */
-        viewMode: 'month',
+        viewMode: 'day',
 
         /**
          * cfg {Number} weekStart Starting day of the week. (0 = Sunday, 1 = Monday ... etc)
@@ -490,6 +490,7 @@ Ext.define('Ext.ux.TouchCalendarView', {
      * Syncs the table's Ext.Element to the height of the Ext.DataView's component. (Only if it isn't in DAY mode)
      */
     syncHeight: function(){
+    console.log(this.getViewMode().toUpperCase());
         if (this.getViewMode().toUpperCase() !== 'DAY') {
             this.element.select('table').first().setHeight(this.element.getHeight());
         }

@@ -418,6 +418,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
             data: []
         });
         var dates = this.calendar.getStore();
+        console.log(dates);
         var store = this.calendar.eventStore;
         var eventBarRecord;
         
@@ -432,8 +433,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
         }, this);
         
         store.sort(this.startEventField, 'ASC');
-        
-        store.each(function(event){
+        store.each(function(event, index){
             // Find any Event Bar record in the EventBarStore for the current Event's record (using internalID)
 
             var eventBarIndex = this.eventBarStore.findBy(function(record, id){
@@ -441,76 +441,40 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
                 var curTime = curDate.getHours()*60+curDate.getMinutes();
                 var startTime = record.get('BarStart'),
                     endTime = record.get('BarEnd');
-                return (curTime < endTime) & (curTime > startTime);
+                return (curTime < endTime) & (curTime >= startTime);
             }, this);
-            console.log(eventBarIndex);
             // if an EventBarRecord was found then it is a multiple day Event so we must link them
-            if (eventBarIndex > -1) {
-                eventBarRecord = this.eventBarStore.getAt(eventBarIndex); // get the actual EventBarRecord
-                
-                // recurse down the linked EventBarRecords to get the last record in the chain for
-                // wrapping Events
-                while (eventBarRecord.linked().getCount() > 0) {
-                    eventBarRecord = eventBarRecord.linked().getAt(eventBarRecord.linked().getCount() - 1);
-                }
-                
-                // if currentDate is at the start of the week then we must create a new EventBarRecord
-                // to represent the new bar on the next row.
-                if (currentDate.getDay() === this.calendar.weekStart) {
-                    // push the inherited BarPosition of the parent 
-                    // EventBarRecord onto the takenDatePositions array
-                    takenDatePositions.push(eventBarRecord.get('BarPosition'));
-                    
-                    // create a new EventBar record 
-                    var wrappedEventBarRecord = Ext.ModelMgr.create({
-                        EventID: event.internalId,
-                        Date: currentDate,
-                        BarLength: 1,
-                        BarPosition: eventBarRecord.get('BarPosition'),
-                        Colour: eventBarRecord.get('Colour'),
-                        Record: event
-                    }, 'Ext.ux.CalendarEventBarModel');
-                    
-                    // add it as a linked EventBar of the parent
-                    eventBarRecord.linked().add(wrappedEventBarRecord);
-                }
-                else {
-                    // add the inherited BarPosition to the takenDatePositions array
-                    takenDatePositions.push(eventBarRecord.get('BarPosition'));
-                    
-                    // increment the BarLength value for this day
-                    eventBarRecord.set('BarLength', eventBarRecord.get('BarLength') + 1);
-                }
+            
+            // get the next free bar position
+            var barPos = this.getNextFreePosition(takenDatePositions);
+            if(eventBarIndex > -1){
+                barPos = index-eventBarIndex;
+            }else{
+                barPos = 0;
             }
-            else {
-                // get the next free bar position
-                var barPos = this.getNextFreePosition(takenDatePositions);
-                
-                // push it onto array so it isn't reused
-                takenDatePositions.push(barPos);
-                var startTime = event.get(this.startEventField),
-                    endTime = event.get(this.endEventField);
-                var barStart = startTime.getHours()*60+startTime.getMinutes();
-                var barEnd = endTime.getHours()*60+endTime.getMinutes();
-                // create new EventBar record
-                eventBarRecord = Ext.ModelMgr.create({
-                    EventID: event.internalId,
-                    Date: currentDate,
-                    BarLength: 1,
-                    BarPosition: barPos,
-                    BarStart: barStart,
-                    BarEnd: barEnd,
-                    Colour: this.getRandomColour(),
-                    Record: event
-                }, 'Ext.ux.CalendarEventBarModel');
-                
-                // add EventBar record to main store
-                this.eventBarStore.add(eventBarRecord);
-            }
+            // push it onto array so it isn't reused
+            takenDatePositions.push(barPos);
+            var startTime = event.get(this.startEventField),
+                endTime = event.get(this.endEventField);
+            var barStart = startTime.getHours()*60+startTime.getMinutes();
+            var barEnd = endTime.getHours()*60+endTime.getMinutes();
+            // create new EventBar record
+            eventBarRecord = Ext.ModelMgr.create({
+                EventID: event.internalId,
+                Date: currentDate,
+                BarLength: 0.8,
+                BarPosition: barPos,
+                BarStart: barStart,
+                BarEnd: barEnd,
+                Colour: this.getRandomColour(),
+                Record: event
+            }, 'Ext.ux.CalendarEventBarModel');
+            
+            // add EventBar record to main store
+            this.eventBarStore.add(eventBarRecord);
             
         }, this);
-        
-        
+
         
         
         store.clearFilter();
@@ -612,8 +576,8 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
     
     renderDayEventBars: function(store){
         var me = this;
+
         store.each(function(record){
-            console.log(record);
             var eventRecord = this.getEventRecord(record.get('EventID')),
                 dayEl = this.calendar.getDateCell(record.get('Date')),
                 doesWrap = this.eventBarDoesWrap(record),
@@ -681,8 +645,14 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
                 dayLeft = 50,
                 dayWidth = dayCellWidth - dayLeft;
             // set sizes and positions
-            eventBar.setWidth(dayWidth);
-            eventBar.setLeft(dayLeft + (barPosition * 50));
+            eventBar.setWidth(dayWidth-20);
+            if(barPosition){
+                eventBar.setLeft(dayLeft + dayWidth/(barPosition + 1));
+                eventBar.setWidth(dayWidth-dayWidth/(barPosition + 1)-20);
+            }else{
+                eventBar.setLeft(dayLeft);
+            }
+            
             eventBar.setHeight(minuteCellHeight * (barEnd - barStart));
             eventBar.setTop(dayCellY - this.calendar.element.getY() + minuteCellHeight * barStart);
            
@@ -908,7 +878,7 @@ Ext.define('Ext.ux.CalendarEventBarModel', {
             type: 'int'
         },{
             name: 'BarLength',
-            type: 'int'
+            type: 'float'
         }, {
             name: 'BarPosition',
             type: 'int'
