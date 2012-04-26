@@ -36,7 +36,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      * @cfg {String} colourField Name of the Model field which contains a colour to be applied to the 
      * event bar
      */
-    colourField: 'colour',
+    colourField: 'colorId',
     
     /**
      * @cfg {String} eventBarCls Base CSS class given to each EventBar
@@ -77,7 +77,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
     /**
      * @cfg {Ext.XTemplate} eventBarTpl Template that will be used to fill the Event Bar
      */
-    eventBarTpl: new Ext.XTemplate('{event}'),
+    eventBarTpl: new Ext.XTemplate('{summary}'),
     
     init: function(calendar){
 
@@ -418,7 +418,6 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
             data: []
         });
         var dates = this.calendar.getStore();
-        console.log(dates);
         var store = this.calendar.eventStore;
         var eventBarRecord;
         
@@ -495,7 +494,6 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
                 dayEl = this.calendar.getDateCell(record.get('Date')),
                 doesWrap = this.eventBarDoesWrap(record),
                 hasWrapped = this.eventBarHasWrapped(record);
-            
             // create the event bar
             var eventBar = Ext.DomHelper.append(this.eventWrapperEl, {
                 tag: 'div',
@@ -786,7 +784,7 @@ Ext.define('Ext.ux.TouchCalendarEvents', {
      */
     getEventRecord: function(eventID){
         var eventRecordIndex = this.calendar.eventStore.findBy(function(rec){
-            return rec.internalId === eventID;
+            return rec.internalId == eventID;
         }, this);
         return this.calendar.eventStore.getAt(eventRecordIndex);
     },
