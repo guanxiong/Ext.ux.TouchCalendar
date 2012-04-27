@@ -490,7 +490,6 @@ Ext.define('Ext.ux.TouchCalendarView', {
      * Syncs the table's Ext.Element to the height of the Ext.DataView's component. (Only if it isn't in DAY mode)
      */
     syncHeight: function(){
-    console.log(this.getViewMode().toUpperCase());
         if (this.getViewMode().toUpperCase() !== 'DAY') {
             this.element.select('table').first().setHeight(this.element.getHeight());
         }
